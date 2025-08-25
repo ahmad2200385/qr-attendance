@@ -1,0 +1,84 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Student Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+<script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body class="bg-light">
+<nav class="navbar navbar-white bg-white shadow-sm"><div class="container">
+  <a class="navbar-brand" href="{{ url_for('index') }}">QR Attendance</a>
+  <div class="ms-auto d-flex align-items-center">
+    <div class="me-3 text-end">
+      <div class="small">Logged in as</div>
+      <strong>{{ session.get('name') }}</strong>
+    </div>
+    <div class="avatar-circle">{{ session.get('name')[0]|upper }}</div>
+    <a class="btn btn-outline-secondary ms-3" href="{{ url_for('logout') }}">Logout</a>
+  </div>
+</div></nav>
+<div class="container py-4">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for cat,msg in messages %}<div class="alert alert-{{cat}} small">{{msg}}</div>{% endfor %}{% endif %}
+  {% endwith %}
+  <div class="row gy-3">
+    <div class="col-md-6">
+      <div class="card p-3 shadow-sm">
+        <h5>Mark Attendance</h5>
+        <form id="codeForm" method="post" action="{{ url_for('mark_attendance') }}" class="mb-2">
+          <div class="mb-2">
+            <label class="form-label">Select Subject</label>
+            <select id="subjectSelect" class="form-select">
+              {% for subj in subjects %}
+                <option value="{{ subj['id'] }}">{{ subj['name'] }} - {{ subj['teacher_name'] or '' }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-primary" id="scanBtn">Open Scanner</button>
+            <input name="code" id="codeInput" placeholder="Or enter unique code" class="form-control">
+            <button type="submit" class="btn btn-success">Mark Attendance</button>
+          </div>
+        </form>
+        <div id="qr-reader" style="display:none; width:100%"></div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card p-3 shadow-sm">
+        <h5>My Attendance Summary</h5>
+        <ul class="list-group">
+        {% for s in summary %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            {{ s['subject_name'] }}
+            <span class="badge bg-primary rounded-pill">{{ s['marks'] }} marks</span>
+          </li>
+        {% else %}
+          <li class="list-group-item">No attendance recorded yet</li>
+        {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('scanBtn').addEventListener('click', ()=>{
+  const reader = document.getElementById('qr-reader');
+  if(reader.style.display === 'none'){ reader.style.display='block'; startScanner(); }
+  else { reader.style.display='none'; }
+});
+function startScanner(){
+  const qrRegion = document.getElementById('qr-reader');
+  const html5QrCode = new Html5Qrcode("qr-reader");
+  Html5Qrcode.getCameras().then(cameras => {
+    if(cameras && cameras.length){
+      html5QrCode.start(cameras[0].id, { fps: 10, qrbox: 250 }, qrCodeMessage => {
+        const form = document.createElement('form');
+        form.method='post'; form.action='{{ url_for('mark_attendance') }}';
+        const inp = document.createElement('input'); inp.type='hidden'; inp.name='qr_content'; inp.value=qrCodeMessage;
+        form.appendChild(inp);
+        document.body.appendChild(form); form.submit();
+      }, errorMessage => {
+      }).catch(err => { alert('Camera start error: '+err) });
+    } else alert('No camera found');
+  }).catch(err=>alert('Camera error: '+err));
+}
+</script>
+</body></html>
